@@ -1,0 +1,74 @@
+{
+  "connection": {
+    "type": "serial",
+    "serial": {
+      "port": "COM1",
+      "baudrate": 9600,
+      "bytesize": 8,
+      "parity": "N",
+      "stopbits": 1,
+      "timeout": 1.0
+    },
+    "tcp": {
+      "host": "192.168.0.100",
+      "port": 4001,
+      "timeout": 3.0
+    },
+    "auto_reconnect": true,
+    "reconnect_delay": 3.0
+  },
+  "protocol": {
+    "type": "generic",
+    "encoding": "ascii",
+    "line_terminator": "\r\n",
+    "regex": "(?P<weight>[-+]?\\d+[\\.,]?\\d*)",
+    "negative_char": "",
+    "decimal_places": 0,
+    "multiplier": 1.0
+  },
+  "weighing": {
+    "unit": "kg",
+    "decimal_places": 3,
+    "stability_threshold": 0.002,
+    "stability_time": 1.0,
+    "default_tare": 0.0,
+    "min_weight": 0.0,
+    "auto_save": true,
+    "auto_save_interval": 2.0
+  },
+  "cloud": {
+    "provider": "local",
+    "enabled": true,
+    "format": "csv",
+    "filename": "pesagens.csv",
+    "local_folder": "./backend/data",
+    "webdav": {
+      "url": "",
+      "username": "",
+      "password": ""
+    },
+    "onedrive_api": {
+      "tenant_id": "common",
+      "client_id": "",
+      "client_secret": "",
+      "refresh_token": "",
+      "folder": "IntegraO/Pesagens"
+    },
+    "gdrive_api": {
+      "credentials_file": "",
+      "token_file": "",
+      "folder_id": ""
+    },
+    "queue_max": 1000
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 5000,
+    "allow_network": true
+  },
+  "ui": {
+    "company_name": "Integra-O",
+    "operator": "",
+    "theme": "dark"
+  }
+}

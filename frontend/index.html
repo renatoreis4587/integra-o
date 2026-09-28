@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Integra-O — Sistema de Balanças</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+  <div class="app">
+    <!-- ================= HEADER ================= -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">IO</div>
+        <div>
+          <h1 id="companyName">Integra-O</h1>
+          <small>Sistema de Captura de Peso — TCP/IP &amp; RS232</small>
+        </div>
+      </div>
+      <div class="right">
+        <div class="status-pill" id="statusPill">
+          <span class="status-dot"></span>
+          <span id="statusText">Desconectado</span>
+        </div>
+        <button class="btn ghost" id="btnConnect" title="Conectar / Desconectar">
+          <span class="ico">🔌</span> <span id="btnConnectLabel">Conectar</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ================= MAIN ================= -->
+    <main>
+      <!-- Painel de peso -->
+      <section class="weight-card">
+        <div class="stable-badge" id="stableBadge">Instável</div>
+        <div class="weight-display">
+          <span class="weight-value" id="weightValue">0.000</span>
+          <span class="weight-unit" id="weightUnit">kg</span>
+        </div>
+        <div class="weight-meta">
+          <span>Bruto: <b id="metaGross">0.000</b></span>
+          <span>Tara: <b id="metaTare">0.000</b></span>
+          <span>Líquido: <b id="metaNet">0.000</b></span>
+          <span>Conexão: <b id="metaConn">—</b></span>
+        </div>
+        <div class="stability-bar"><span id="stabilityFill"></span></div>
+      </section>
+
+      <!-- Ações -->
+      <section class="card">
+        <h2><span class="ico">⚙️</span> Comandos da Balança</h2>
+        <div class="actions">
+          <button class="btn amber" id="btnTare"><span class="ico">⚖️</span> Capturar Tara</button>
+          <button class="btn ghost" id="btnTareManual"><span class="ico">✏️</span> Tara Manual</button>
+          <button class="btn ghost" id="btnClearTare"><span class="ico">🧹</span> Limpar Tara</button>
+          <button class="btn blue" id="btnZero"><span class="ico">0️⃣</span> Zerar Balança</button>
+          <button class="btn primary" id="btnRecord"><span class="ico">💾</span> Salvar Pesagem</button>
+        </div>
+      </section>
+
+      <!-- Histórico -->
+      <section class="card">
+        <div class="flex-between" style="margin-bottom:12px">
+          <h2 style="margin:0"><span class="ico">📋</span> Histórico de Pesagens</h2>
+          <div class="gap">
+            <button class="btn ghost small" id="btnExport">⬇️ Exportar CSV</button>
+            <button class="btn ghost small" id="btnClearHistory">🗑️ Limpar</button>
+          </div>
+        </div>
+        <div class="history-wrap">
+          <table class="history">
+            <thead>
+              <tr>
+                <th>#</th><th>Data/Hora</th><th>Líquido</th><th>Un.</th>
+                <th>Tara</th><th>Bruto</th><th>Estável</th><th>Tipo</th><th>Operador</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr><td colspan="9" class="muted" style="text-align:center;padding:24px">Nenhuma pesagem registrada.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- ================= SIDE (Configurações) ================= -->
+    <aside>
+      <div class="mini-stats">
+        <div class="stat"><div class="k">Salvas (nuvem)</div><div class="v green" id="statSaved">0</div></div>
+        <div class="stat"><div class="k">Falhas</div><div class="v red" id="statFailed">0</div></div>
+        <div class="stat"><div class="k">Na fila</div><div class="v amber" id="statQueued">0</div></div>
+        <div class="stat"><div class="k">Total pesagens</div><div class="v" id="statCounter">0</div></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="ico">🛠️</span> Configurações</h2>
+        <div class="tabs">
+          <button class="tab active" data-tab="tab-conn">Conexão</button>
+          <button class="tab" data-tab="tab-proto">Protocolo</button>
+          <button class="tab" data-tab="tab-weigh">Pesagem</button>
+          <button class="tab" data-tab="tab-cloud">Nuvem</button>
+          <button class="tab" data-tab="tab-sys">Sistema</button>
+        </div>
+
+        <!-- Conexão -->
+        <div class="tab-panel active" id="tab-conn">
+          <div class="field">
+            <label>Tipo de Conexão</label>
+            <select id="connType">
+              <option value="serial">RS232 (Serial)</option>
+              <option value="tcp">TCP/IP (Rede)</option>
+            </select>
+          </div>
+
+          <div id="serialFields">
+            <div class="field">
+              <label>Porta Serial</label>
+              <div class="gap">
+                <input type="text" id="serialPort" placeholder="COM1 ou /dev/ttyUSB0" style="flex:1" />
+                <button class="btn ghost small" id="btnScanPorts" title="Detectar portas">🔍</button>
+              </div>
+              <div class="hint" id="portsHint">Clique em 🔍 para listar as portas disponíveis.</div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label>Baudrate</label>
+                <select id="serialBaud">
+                  <option>1200</option><option>2400</option><option>4800</option>
+                  <option selected>9600</option><option>19200</option><option>38400</option>
+                  <option>57600</option><option>115200</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Data Bits</label>
+                <select id="serialBytesize"><option>5</option><option>6</option><option>7</option><option selected>8</option></select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label>Paridade</label>
+                <select id="serialParity">
+                  <option value="N" selected>Nenhuma (N)</option>
+                  <option value="E">Par (E)</option>
+                  <option value="O">Ímpar (O)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Stop Bits</label>
+                <select id="serialStopbits"><option selected>1</option><option>1.5</option><option>2</option></select>
+              </div>
+            </div>
+          </div>
+
+          <div id="tcpFields" class="hidden">
+            <div class="field">
+              <label>Host / IP da Balança</label>
+              <input type="text" id="tcpHost" placeholder="192.168.0.100" />
+            </div>
+            <div class="row">
+              <div class="field">
+                <label>Porta TCP</label>
+                <input type="number" id="tcpPort" placeholder="4001" />
+              </div>
+              <div class="field">
+                <label>Timeout (s)</label>
+                <input type="number" step="0.5" id="tcpTimeout" placeholder="3" />
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label>Reconexão automática</label>
+              <select id="autoReconnect"><option value="true" selected>Sim</option><option value="false">Não</option></select>
+            </div>
+            <div class="field">
+              <label>Intervalo reconexão (s)</label>
+              <input type="number" step="0.5" id="reconnectDelay" placeholder="3" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Protocolo -->
+        <div class="tab-panel" id="tab-proto">
+          <div class="field">
+            <label>Protocolo da Balança</label>
+            <select id="protoType"></select>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>Casas decimais (implícitas)</label>
+              <input type="number" id="protoDecimals" placeholder="0" />
+              <div class="hint">Use 3 se a balança envia "12345" para 12,345.</div>
+            </div>
+            <div class="field">
+              <label>Multiplicador</label>
+              <input type="number" step="0.001" id="protoMultiplier" placeholder="1.0" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Terminador de linha</label>
+            <select id="protoTerminator">
+              <option value="\r\n">CR+LF (\r\n)</option>
+              <option value="\r">CR (\r)</option>
+              <option value="\n">LF (\n)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Encoding</label>
+            <select id="protoEncoding">
+              <option value="ascii" selected>ASCII</option>
+              <option value="utf-8">UTF-8</option>
+              <option value="latin-1">Latin-1</option>
+            </select>
+          </div>
+          <div class="field" id="regexField">
+            <label>Expressão Regular (grupo "weight")</label>
+            <textarea id="protoRegex" placeholder="(?P&lt;weight&gt;[-+]?\d+[\.,]?\d*)"></textarea>
+            <div class="hint">Deve conter o grupo nomeado <code>weight</code>.</div>
+          </div>
+        </div>
+
+        <!-- Pesagem -->
+        <div class="tab-panel" id="tab-weigh">
+          <div class="row">
+            <div class="field">
+              <label>Unidade</label>
+              <select id="weighUnit">
+                <option value="kg">kg</option><option value="g">g</option>
+                <option value="t">t</option><option value="lb">lb</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Tara padrão</label>
+              <input type="number" step="0.001" id="weighTare" placeholder="0" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>Limiar de estabilidade</label>
+              <input type="number" step="0.001" id="weighThreshold" placeholder="0.002" />
+            </div>
+            <div class="field">
+              <label>Tempo p/ estabilizar (s)</label>
+              <input type="number" step="0.1" id="weighStabilityTime" placeholder="1.0" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>Peso mínimo válido</label>
+              <input type="number" step="0.001" id="weighMin" placeholder="0" />
+            </div>
+            <div class="field">
+              <label>Salvar automático</label>
+              <select id="weighAutoSave"><option value="true" selected>Sim</option><option value="false">Não</option></select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Intervalo entre salvamentos (s)</label>
+            <input type="number" step="0.5" id="weighAutoInterval" placeholder="2" />
+          </div>
+        </div>
+
+        <!-- Nuvem -->
+        <div class="tab-panel" id="tab-cloud">
+          <div class="field">
+            <label>Provedor de Destino</label>
+            <select id="cloudProvider">
+              <option value="local">Pasta Local</option>
+              <option value="onedrive_folder">OneDrive (pasta sincronizada)</option>
+              <option value="gdrive_folder">Google Drive (pasta sincronizada)</option>
+              <option value="onedrive_api">OneDrive API (Microsoft Graph)</option>
+              <option value="gdrive_api">Google Drive API</option>
+              <option value="webdav">WebDAV</option>
+            </select>
+            <div class="hint">Para OneDrive/Google Drive, aponte para a pasta local que o app de sincronização cria.</div>
+          </div>
+          <div class="field">
+            <label>Sincronização habilitada</label>
+            <select id="cloudEnabled"><option value="true" selected>Sim</option><option value="false">Não</option></select>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>Formato do arquivo</label>
+              <select id="cloudFormat"><option value="csv" selected>CSV</option><option value="json">JSON</option><option value="txt">TXT</option></select>
+            </div>
+            <div class="field">
+              <label>Nome do arquivo</label>
+              <input type="text" id="cloudFilename" placeholder="pesagens.csv" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Pasta local / sincronizada</label>
+            <input type="text" id="cloudFolder" placeholder="./backend/data ou C:\Users\...\OneDrive\Pesagens" />
+          </div>
+
+          <div id="webdavFields" class="hidden">
+            <div class="section-title">WebDAV</div>
+            <div class="field"><label>URL</label><input type="text" id="webdavUrl" placeholder="https://cloud.exemplo.com/remote.php/dav/files/user" /></div>
+            <div class="row">
+              <div class="field"><label>Usuário</label><input type="text" id="webdavUser" /></div>
+              <div class="field"><label>Senha</label><input type="password" id="webdavPass" /></div>
+            </div>
+          </div>
+
+          <div id="onedriveFields" class="hidden">
+            <div class="section-title">OneDrive API</div>
+            <div class="field"><label>Tenant ID</label><input type="text" id="odTenant" placeholder="common" /></div>
+            <div class="field"><label>Client ID</label><input type="text" id="odClientId" /></div>
+            <div class="field"><label>Client Secret</label><input type="password" id="odClientSecret" /></div>
+            <div class="field"><label>Refresh Token</label><textarea id="odRefreshToken"></textarea></div>
+            <div class="field"><label>Pasta no OneDrive</label><input type="text" id="odFolder" placeholder="IntegraO/Pesagens" /></div>
+          </div>
+
+          <div id="gdriveFields" class="hidden">
+            <div class="section-title">Google Drive API</div>
+            <div class="field"><label>Arquivo de credenciais (service account)</label><input type="text" id="gdCreds" placeholder="credentials.json" /></div>
+            <div class="field"><label>Arquivo de token (OAuth)</label><input type="text" id="gdToken" placeholder="token.json" /></div>
+            <div class="field"><label>ID da pasta (opcional)</label><input type="text" id="gdFolderId" /></div>
+            <div class="field"><label>Nome da pasta</label><input type="text" id="gdFolder" placeholder="IntegraO/Pesagens" /></div>
+          </div>
+
+          <button class="btn blue" id="btnTestCloud" style="width:100%;margin-top:6px">☁️ Testar Destino</button>
+        </div>
+
+        <!-- Sistema -->
+        <div class="tab-panel" id="tab-sys">
+          <div class="row">
+            <div class="field"><label>Host do servidor</label><input type="text" id="srvHost" placeholder="0.0.0.0" /></div>
+            <div class="field"><label>Porta do servidor</label><input type="number" id="srvPort" placeholder="5000" /></div>
+          </div>
+          <div class="field"><label>Nome da empresa</label><input type="text" id="uiCompany" /></div>
+          <div class="field"><label>Operador</label><input type="text" id="uiOperator" /></div>
+          <div class="hint">Alterar host/porta exige reiniciar o servidor manualmente.</div>
+        </div>
+
+        <div class="gap" style="margin-top:16px">
+          <button class="btn primary" id="btnSaveConfig" style="flex:1">💾 Salvar Configurações</button>
+          <button class="btn ghost" id="btnResetConfig">↺ Padrão</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="ico">📜</span> Log do Sistema</h2>
+        <div class="logs" id="logs"></div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="toasts"></div>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

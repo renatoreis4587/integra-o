@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Dados gerados
+backend/data/*.csv
+backend/data/*.json
+backend/data/*.txt
+!backend/data/.gitkeep
+
+# Distribuição
+dist/
+*.zip
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log
+
+# Credenciais (nunca versionar)
+credentials.json
+token.json
+*.secret

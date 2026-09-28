@@ -1,0 +1,24 @@
+# ============================================================
+# Integra-O — Sistema de Balanças
+# Dependências Python
+# ============================================================
+
+# Servidor web + WebSocket em tempo real
+Flask>=3.0.0
+Flask-Cors>=4.0.0
+Flask-SocketIO>=5.3.6
+python-socketio>=5.11.0
+python-engineio>=4.9.0
+simple-websocket>=1.0.0
+
+# Comunicação RS232 (serial)
+pyserial>=3.5
+
+# ------------------------------------------------------------
+# OPCIONAL — Sincronização direta via API na nuvem
+# (não é necessário se usar pastas sincronizadas do OneDrive/
+#  Google Drive. Descomente apenas se for usar as APIs.)
+# ------------------------------------------------------------
+# google-api-python-client>=2.100.0
+# google-auth>=2.23.0
+# google-auth-httplib2>=0.1.1
