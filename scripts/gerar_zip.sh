@@ -13,6 +13,7 @@ zip -r "${OUT}" \
     run.py requirements.txt \
     iniciar_windows.bat iniciar_linux.sh \
     README.md \
-    -x "*/__pycache__/*" "*.pyc" ".venv/*" "dist/*" "*.git/*"
+    -x "*/__pycache__/*" "*.pyc" ".venv/*" "dist/*" "*.git/*" \
+       "backend/data/*.csv" "backend/data/*.json" "backend/data/*.txt" "*.log"
 
 echo "Pronto: ${OUT}"

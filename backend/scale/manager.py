@@ -9,6 +9,13 @@ O :class:`ScaleManager` é responsável por:
 * disparar callbacks de atualização em tempo real (usados pelo SocketIO);
 * acionar o salvamento em nuvem quando uma pesagem estabiliza;
 * manter um histórico em memória das últimas pesagens.
+
+O ciclo de vida da conexão é implementado por :meth:`_cycle`, que executa
+**um** ciclo completo (conectar → ler → encerrar). O laço externo
+:meth:`_run` chama :meth:`_cycle` repetidamente, tratando reconexão e
+mudanças de configuração. Isso torna a troca de IP/porta robusta: quando a
+configuração muda, :meth:`restart` sinaliza a thread de leitura a interromper
+o ciclo atual e reconectar imediatamente com os novos parâmetros.
 """
 
 from __future__ import annotations
@@ -35,6 +42,8 @@ class ScaleManager:
         self._lock = threading.RLock()
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
+        # Sinaliza que a configuração mudou e a conexão deve ser refeita.
+        self._reconnect = threading.Event()
         self._connection: Optional[BaseConnection] = None
         self._protocol = None
 
@@ -77,6 +86,17 @@ class ScaleManager:
             except Exception:
                 pass
 
+    def _set_status(self, status: str, connected: bool,
+                    connection: str = "") -> None:
+        """Atualiza o status interno e notifica os clientes."""
+        with self._lock:
+            self._status = status
+            self._connected = connected
+        payload = {"status": status, "connected": connected}
+        if connection:
+            payload["connection"] = connection
+        self._emit("status", payload)
+
     # -- Estado ------------------------------------------------------------
     def state(self) -> Dict[str, Any]:
         with self._lock:
@@ -113,6 +133,7 @@ class ScaleManager:
         if self._thread and self._thread.is_alive():
             return
         self._stop.clear()
+        self._reconnect.clear()
         self._thread = threading.Thread(
             target=self._run, name="ScaleManager", daemon=True
         )
@@ -120,114 +141,154 @@ class ScaleManager:
 
     def stop(self) -> None:
         self._stop.set()
+        self._reconnect.set()
         self._close_connection()
         if self._thread:
             self._thread.join(timeout=3.0)
         self.cloud.stop()
 
     def restart(self) -> None:
-        """Reinicia a conexão (após mudança de configuração)."""
+        """Solicita a reconexão com a configuração atual.
+
+        Sinaliza a thread de leitura a interromper o ciclo atual e reconectar
+        imediatamente, aplicando qualquer mudança de IP/porta/protocolo. É
+        seguro chamar mesmo se a thread não estiver rodando.
+        """
+        self._reconnect.set()
+        # Fecha a conexão atual para desbloquear uma leitura em andamento.
         self._close_connection()
-        # A thread principal detecta a conexão fechada e reconecta.
+        # Garante que a thread esteja viva (ex.: após um stop).
+        if not (self._thread and self._thread.is_alive()):
+            self.start()
 
     def _close_connection(self) -> None:
+        """Fecha a conexão atual sem manter o lock durante o fechamento."""
         with self._lock:
-            if self._connection is not None:
-                try:
-                    self._connection.close()
-                except Exception:
-                    pass
+            conn = self._connection
             self._connection = None
             self._connected = False
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     # -- Loop principal ----------------------------------------------------
     def _run(self) -> None:
+        """Laço externo: executa ciclos de conexão/leitura continuamente."""
         while not self._stop.is_set():
-            conn_cfg = self.cfg.get_section("connection")
-            proto_cfg = self.cfg.get_section("protocol")
-            weigh_cfg = self.cfg.get_section("weighing")
-
-            self._unit = weigh_cfg.get("unit", "kg")
-            self._protocol = build_protocol(proto_cfg)
-
-            # Aplica tara padrão se ainda não houver tara ativa.
-            with self._lock:
-                if self._tare == 0.0 and weigh_cfg.get("default_tare", 0.0):
-                    self._tare = float(weigh_cfg.get("default_tare", 0.0))
-
-            # Conecta.
             try:
-                with self._lock:
-                    self._status = "conectando..."
-                self._emit("status", {"status": "conectando...",
-                                      "connected": False})
-                self._connection = build_connection(conn_cfg, proto_cfg)
-                self._connection.open()
-                with self._lock:
-                    self._connected = True
-                    self._status = "conectado"
-                self.logger(
-                    f"Conectado: {self._connection.describe()}", "info"
-                )
-                self._emit("status", {
-                    "status": "conectado", "connected": True,
-                    "connection": self._connection.describe(),
-                })
-            except ConnectionError_ as exc:
-                with self._lock:
-                    self._connected = False
-                    self._status = f"erro: {exc}"
-                self.logger(f"Falha de conexão: {exc}", "error")
-                self._emit("status", {"status": f"erro: {exc}",
-                                      "connected": False})
-                if not conn_cfg.get("auto_reconnect", True):
-                    break
-                self._sleep(conn_cfg.get("reconnect_delay", 3.0))
-                continue
+                action = self._cycle()
+            except Exception as exc:  # noqa: BLE001 — nunca deixar a thread morrer
+                self.logger(f"Erro inesperado no ciclo de leitura: {exc}",
+                            "error")
+                self._set_status(f"erro: {exc}", False)
+                self._close_connection()
+                action = "retry"
 
-            # Loop de leitura.
-            while not self._stop.is_set():
-                try:
-                    line = self._connection.read_line()
-                except ConnectionError_ as exc:
-                    self.logger(f"Conexão perdida: {exc}", "error")
-                    self._emit("status", {"status": f"erro: {exc}",
-                                          "connected": False})
-                    break
-
-                if line is None:
-                    # Verifica se a conexão ainda está aberta.
-                    if not self._connection.is_open:
-                        break
-                    time.sleep(0.02)
-                    continue
-
-                self._handle_line(line, weigh_cfg)
-
-            # Encerramento / reconexão.
-            self._close_connection()
+            if action == "stop":
+                break
             if self._stop.is_set():
                 break
+            # "immediate" = reconectar já (config mudou); "retry" = com atraso.
+            if action == "retry":
+                delay = self.cfg.get_section("connection").get(
+                    "reconnect_delay", 3.0)
+                self._sleep(delay)
+
+        self._close_connection()
+        self._set_status("desconectado", False)
+
+    def _cycle(self) -> str:
+        """Executa um ciclo completo. Retorna a ação para o laço externo.
+
+        Valores de retorno:
+        * ``"immediate"`` — reconectar imediatamente (configuração mudou);
+        * ``"retry"``     — reconectar após o atraso configurado;
+        * ``"stop"``      — encerrar o laço (parada ou sem reconexão).
+        """
+        conn_cfg = self.cfg.get_section("connection")
+        proto_cfg = self.cfg.get_section("protocol")
+        weigh_cfg = self.cfg.get_section("weighing")
+
+        self._unit = weigh_cfg.get("unit", "kg")
+        self._protocol = build_protocol(proto_cfg)
+
+        # Aplica tara padrão se ainda não houver tara ativa.
+        with self._lock:
+            if self._tare == 0.0 and weigh_cfg.get("default_tare", 0.0):
+                self._tare = float(weigh_cfg.get("default_tare", 0.0))
+
+        # Limpa o pedido de reconexão (a config já foi relida acima).
+        self._reconnect.clear()
+
+        # --- Conectar -----------------------------------------------------
+        self._set_status("conectando...", False)
+        try:
+            conn = build_connection(conn_cfg, proto_cfg)
+            conn.open()
+        except ConnectionError_ as exc:
+            self.logger(f"Falha de conexão: {exc}", "error")
+            self._set_status(f"erro: {exc}", False)
             if not conn_cfg.get("auto_reconnect", True):
-                with self._lock:
-                    self._status = "desconectado"
-                self._emit("status", {"status": "desconectado",
-                                      "connected": False})
-                break
-            with self._lock:
-                self._status = "reconectando..."
-            self._emit("status", {"status": "reconectando...",
-                                  "connected": False})
-            self._sleep(conn_cfg.get("reconnect_delay", 3.0))
+                return "stop"
+            return "retry"
 
         with self._lock:
-            self._connected = False
-            if self._status not in ("desconectado",):
-                self._status = "desconectado"
+            self._connection = conn
+            self._connected = True
+            self._status = "conectado"
+        self.logger(f"Conectado: {conn.describe()}", "info")
+        self._emit("status", {
+            "status": "conectado", "connected": True,
+            "connection": conn.describe(),
+        })
+
+        # --- Ler ----------------------------------------------------------
+        # Usa referência local `conn` para que um restart() que zere
+        # self._connection não cause AttributeError.
+        while not self._stop.is_set() and not self._reconnect.is_set():
+            try:
+                line = conn.read_line()
+            except ConnectionError_ as exc:
+                self.logger(f"Conexão perdida: {exc}", "error")
+                self._set_status(f"erro: {exc}", False)
+                break
+
+            if line is None:
+                if not conn.is_open:
+                    break
+                continue
+
+            self._handle_line(line, weigh_cfg)
+
+        # --- Encerrar ciclo ----------------------------------------------
+        self._close_connection()
+
+        if self._stop.is_set():
+            return "stop"
+
+        if self._reconnect.is_set():
+            # Configuração mudou: reconecta imediatamente com os novos dados.
+            self.logger("Reconectando com a nova configuração...", "info")
+            self._set_status("reconectando...", False)
+            return "immediate"
+
+        if not conn_cfg.get("auto_reconnect", True):
+            self._set_status("desconectado", False)
+            return "stop"
+
+        self._set_status("reconectando...", False)
+        return "retry"
 
     def _sleep(self, seconds: float) -> None:
-        """Sleep interrompível."""
-        self._stop.wait(timeout=max(0.0, seconds))
+        """Sleep interrompível por stop() ou restart()."""
+        deadline = time.time() + max(0.0, seconds)
+        while time.time() < deadline:
+            if self._stop.wait(0.05):
+                return
+            if self._reconnect.is_set():
+                return
 
     # -- Tratamento de linha ----------------------------------------------
     def _handle_line(self, line: str, weigh_cfg: dict) -> None:
@@ -327,7 +388,6 @@ class ScaleManager:
 
     def record_weighing(self, auto: bool = False) -> Dict[str, Any]:
         """Registra a pesagem atual no histórico e envia para a nuvem."""
-        weigh_cfg = self.cfg.get_section("weighing")
         ui_cfg = self.cfg.get_section("ui")
         with self._lock:
             self._counter += 1
