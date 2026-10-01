@@ -28,7 +28,7 @@ from typing import Any, Callable, Deque, Dict, List, Optional
 
 from .cloud import CloudSync
 from .connections import BaseConnection, ConnectionError_, build_connection
-from .protocols import build_protocol
+from .protocols import WeightReading, build_protocol, hexdump
 
 
 class ScaleManager:
@@ -59,6 +59,12 @@ class ScaleManager:
         self._negative = False
         self._unit = "kg"
         self._last_update = 0.0
+
+        # Monitor de bytes crus (diagnóstico de protocolo).
+        self._last_raw_bytes = b""
+        self._last_raw_hex = ""
+        self._last_raw_time = 0.0
+        self._last_parsed = None
 
         # Estabilização.
         self._stable_since: Optional[float] = None
@@ -113,6 +119,8 @@ class ScaleManager:
                 "unit": self._unit,
                 "counter": self._counter,
                 "last_update": self._last_update,
+                "raw_hex": self._last_raw_hex,
+                "raw_time": self._last_raw_time,
                 "connection": self._connection.describe()
                 if self._connection else "",
             }
@@ -249,18 +257,32 @@ class ScaleManager:
         # self._connection não cause AttributeError.
         while not self._stop.is_set() and not self._reconnect.is_set():
             try:
-                line = conn.read_line()
+                data = conn.read_raw()
             except ConnectionError_ as exc:
                 self.logger(f"Conexão perdida: {exc}", "error")
                 self._set_status(f"erro: {exc}", False)
                 break
 
-            if line is None:
+            if data is None:
                 if not conn.is_open:
                     break
                 continue
+            if not data:
+                # Timeout de leitura: sem dados novos.
+                continue
 
-            self._handle_line(line, weigh_cfg)
+            # Atualiza o monitor de bytes crus (diagnóstico), mesmo que o
+            # protocolo não consiga interpretar a mensagem.
+            self._update_monitor(data)
+
+            try:
+                readings = self._protocol.feed(data) if self._protocol else []
+            except Exception as exc:  # noqa: BLE001 — nunca derrubar a thread
+                self.logger(f"Erro ao interpretar dados: {exc}", "error")
+                readings = []
+
+            for reading in readings:
+                self._handle_reading(reading, weigh_cfg)
 
         # --- Encerrar ciclo ----------------------------------------------
         self._close_connection()
@@ -290,12 +312,16 @@ class ScaleManager:
             if self._reconnect.is_set():
                 return
 
-    # -- Tratamento de linha ----------------------------------------------
-    def _handle_line(self, line: str, weigh_cfg: dict) -> None:
-        reading = self._protocol.parse(line) if self._protocol else None
-        if reading is None:
-            return
+    # -- Monitor de bytes crus --------------------------------------------
+    def _update_monitor(self, data: bytes) -> None:
+        """Guarda os últimos bytes recebidos (hex + ASCII) para diagnóstico."""
+        with self._lock:
+            self._last_raw_bytes = bytes(data)
+            self._last_raw_hex = hexdump(self._last_raw_bytes)
+            self._last_raw_time = time.time()
 
+    # -- Tratamento de leitura --------------------------------------------
+    def _handle_reading(self, reading: WeightReading, weigh_cfg: dict) -> None:
         now = time.time()
         with self._lock:
             self._raw = reading.raw

@@ -16,7 +16,7 @@ própria máquina (`localhost`) ou de qualquer computador da mesma rede.
 |---|---|
 | 🔌 **RS232 / Serial** | Suporte a portas COM (Windows) e `/dev/tty*` (Linux), com baudrate, paridade, data bits e stop bits configuráveis. |
 | 🌐 **TCP/IP** | Conexão como cliente a balanças com servidor TCP embutido (host/porta configuráveis). |
-| 🧩 **Protocolos** | Genérico, Mettler Toledo, Filizola, CAS, A&D e **regex personalizado**. |
+| 🧩 **Protocolos** | Genérico, Mettler Toledo, **Mettler Toledo TI400 (P03/P10/P08/auto)**, Filizola, CAS, A&D e **regex personalizado**. |
 | 📺 **Painel em tempo real** | Peso exibido ao vivo via WebSocket (sem recarregar a página). |
 | ⚖️ **Tara** | Capturar tara do peso atual, definir tara manual ou limpar a tara. |
 | 0️⃣ **Zerar balança** | Zera o offset de leitura pelo sistema. |
@@ -48,8 +48,10 @@ integra-o/
 ├── config/
 │   └── config.json             # Configuração persistida
 ├── scripts/
-│   ├── simulador_balanca.py    # Simulador de balança TCP (para testes)
+│   ├── simulador_balanca.py    # Simulador de balança TCP (inclui TI400 P03)
 │   ├── testar_sistema.py       # Testes dos módulos internos
+│   ├── testar_ti400.py         # Testes dos protocolos Mettler Toledo TI400
+│   ├── testar_serial_pty.py    # Teste de leitura serial (pseudo-terminal)
 │   └── gerar_zip.sh            # Gera o ZIP de distribuição
 ├── docs/
 │   └── MANUAL.md               # Manual de uso detalhado
@@ -107,6 +109,20 @@ Escolha o protocolo da sua balança. Se ela envia o número "cru" (ex.: `12345`
 para 12,345 kg), use o protocolo **Genérico** com **3 casas decimais
 implícitas**. Para formatos especiais, use **Personalizado (Regex)**.
 
+**Indicador Mettler Toledo TI400:** conectado pela **rede (TCP/IP)**, o TI400
+envia o protocolo **P03**, que é um **quadro binário de tamanho fixo** — não é
+texto. Por isso o protocolo **Mettler Toledo / Toledo** (`ST,GS,+…`) **não
+funciona** com o TI400 na rede. Selecione:
+
+- **Mettler Toledo TI400 — Automático** (recomendado): detecta P03 (binário) ou
+  ASCII (P10/P08) automaticamente.
+- **Mettler Toledo TI400 — P03**: quadro binário de 18 bytes, usado no
+  socket Ethernet/WiFi (e também no serial).
+- **Mettler Toledo TI400 — P10** / **P08**: variantes de texto.
+
+Para descobrir o protocolo certo, veja o campo **Monitor da balança — bytes
+recebidos** na aba *Protocolo* (mostra os bytes crus em hexadecimal + ASCII).
+
 ### 3. Pesagem
 Defina unidade (kg/g/t/lb), tara padrão, limiar e tempo de estabilidade, peso
 mínimo válido e o intervalo entre salvamentos automáticos.
@@ -143,9 +159,20 @@ Depois, no painel, configure a conexão como **TCP/IP** apontando para
 `127.0.0.1:4001` e o protocolo **Mettler Toledo**. O peso aparecerá mudando
 automaticamente.
 
+Para simular um **indicador Mettler Toledo TI400** (quadro binário P03, igual ao
+do socket de rede real):
+
+```bash
+python scripts/simulador_balanca.py --port 4001 --protocol ti400_p03
+```
+
+E no painel escolha o protocolo **Mettler Toledo TI400 — P03** (ou **Automático**).
+
 Teste dos módulos internos:
 ```bash
 python scripts/testar_sistema.py
+python scripts/testar_ti400.py        # protocolos TI400 (P03/P10/P08/auto)
+python scripts/testar_serial_pty.py   # leitura serial via pseudo-terminal
 ```
 
 ---
@@ -179,7 +206,7 @@ aba **Sistema**.
 | Sintoma | Causa provável / Solução |
 |---|---|
 | "Falha ao abrir porta serial" | Porta errada ou em uso. Confira com o botão 🔍 e feche outros programas. |
-| Peso não aparece | Protocolo/baudrate incorretos. Teste com o simulador e ajuste o protocolo. |
+| Peso não aparece | Protocolo/baudrate incorretos. Teste com o simulador e ajuste o protocolo. No **TI400 via rede**, selecione **Mettler Toledo TI400 — P03** ou **Automático** (o formato `ST,GS,+…` não funciona nesse indicador). |
 | Peso "congelado" | Cabo/rede caíram. O sistema reconecta sozinho; verifique o log. |
 | Não salva na nuvem | Verifique a pasta de destino e o botão *Testar Destino*. |
 | Porta 5000 em uso | Altere a porta na aba **Sistema** e reinicie o servidor. |

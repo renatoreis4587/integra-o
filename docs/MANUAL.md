@@ -83,7 +83,7 @@ uma página web servida pelo próprio backend, acessível por qualquer navegador
 
 - **Genérico**: extrai o primeiro número da linha. Ideal quando a balança envia
   algo como `  12.345\r\n`.
-- **Mettler Toledo / Toledo**: formato `ST,GS,+  12.345 kg`.
+- **Mettler Toledo / Toledo**: formato ASCII padrão `ST,GS,+  12.345 kg`.
 - **Filizola**: formato numérico brasileiro.
 - **CAS**: formato `ST,GS, 12.345kg`.
 - **A&D (AND)**: formato `ST,+0012.345 kg`.
@@ -93,8 +93,48 @@ uma página web servida pelo próprio backend, acessível por qualquer navegador
   PESO=(?P<weight>[-+]?\d+[\.,]?\d*)\s*(?P<unit>kg|g)
   ```
 
+#### Mettler Toledo TI400 (indicador de peso)
+
+O indicador **TI400** usa protocolos próprios (P01…P11), diferentes do formato
+ASCII padrão da Mettler Toledo. O ponto mais importante: **quando conectado pela
+rede (socket TCP/IP), o TI400 envia o protocolo P03, que é um quadro BINÁRIO de
+tamanho fixo** — e não texto. Por isso a opção **Mettler Toledo / Toledo**
+(`ST,GS,+…`) **não funciona** com o TI400 na rede. Selecione uma das opções
+abaixo:
+
+- **Mettler Toledo TI400 — Automático (recomendado)**: detecta sozinho se o
+  equipamento está enviando P03 (binário) ou um protocolo ASCII (P10/P08). Use
+  esta opção quando não souber qual protocolo está ativo.
+- **Mettler Toledo TI400 — P03 (rede/TCP e serial)**: quadro binário de 18 bytes
+  (`STX SWA SWB SWC IIIIII TTTTTT CR CS`). É o protocolo usado pelo socket
+  Ethernet/WiFi do TI400. O sistema decodifica automaticamente o peso, a tara, o
+  sinal (negativo), o estado de sobrecarga e o movimento (estabilidade).
+- **Mettler Toledo TI400 — P10 (string editável)**: quadro de texto em que o peso
+  vem antes do bloco de status. Ex.: `Plataforma 0,269 LPFEZKp 0,627 0,358`.
+- **Mettler Toledo TI400 — P08/P08A**: formato de texto simples. Ex.:
+  `S   09.076 kg`.
+
+**Como saber qual usar**: abra a aba **Protocolo** e observe o campo
+**Monitor da balança — bytes recebidos**. Ele mostra os últimos bytes crus
+(hexadecimal + ASCII) que chegaram do equipamento:
+
+- Se aparecerem bytes de controle como `02 … 0D` (STX … CR) com caracteres não
+  imprimíveis, é **P03** (binário) → use `ti400_p03` ou `ti400_auto`.
+- Se aparecer texto legível como `S   09.076 kg` → use `ti400_p08`.
+- Se aparecer algo como `Plataforma 0,269 LPFEZKp …` → use `ti400_p10`.
+
+> 💡 **Dica:** comece sempre por **Mettler Toledo TI400 — Automático**. Se o peso
+> aparecer, o protocolo já está correto.
+
+**Comandos de controle (P03)**: com o protocolo P03, os botões do painel enviam
+os comandos ao indicador:
+- **Zerar**: `STX Z CR` (`02 5A 0D`)
+- **Tarar**: `STX T CR` (`02 54 0D`)
+- **Destarar**: `STX C CR` (`02 43 0D`)
+
 **Casas decimais (implícitas)**: use quando a balança não envia o ponto decimal.
-Ex.: se envia `12345` para representar `12,345`, use **3**.
+Ex.: se envia `12345` para representar `12,345`, use **3**. (No protocolo P03 a
+posição decimal já vem codificada no quadro e é decodificada automaticamente.)
 
 **Multiplicador**: fator aplicado ao valor (ex.: `0.001` se vier em gramas).
 

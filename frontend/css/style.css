@@ -292,6 +292,53 @@ table.history tr:hover td { background: rgba(255,255,255,.02); }
   .brand h1 { font-size: 15px; }
 }
 
+/* ---------- Monitor de bytes crus ---------- */
+.monitor {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  background: #0b0f17;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+  max-height: 120px;
+  overflow: auto;
+  word-break: break-all;
+  white-space: pre-wrap;
+  color: #7ee0a1;
+}
+
+/* ---------- Caixa de ajuda TI400 ---------- */
+.ti400-box {
+  background: linear-gradient(135deg, rgba(34,211,166,.10), rgba(59,130,246,.08));
+  border: 1px solid rgba(34,211,166,.35);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.ti400-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.ti400-head .ico { font-size: 18px; }
+.ti400-text { font-size: 12.5px; color: var(--text-dim); line-height: 1.55; margin: 0 0 10px; }
+.ti400-text b { color: var(--text); }
+.ti400-text code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  background: rgba(255,255,255,.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+.ti400-text.small { font-size: 11.5px; margin-top: 10px; margin-bottom: 0; }
+.ti400-box .btn { margin-top: 2px; }
+
 /* ---------- Print ---------- */
 @media print {
   body { background: #fff; color: #000; }
