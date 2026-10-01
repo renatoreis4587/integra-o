@@ -68,6 +68,10 @@ function renderState(s) {
   $("btnConnectLabel").textContent = s.connected ? "Desconectar" : "Conectar";
 
   $("statCounter").textContent = s.counter ?? 0;
+
+  // Monitor de bytes crus (diagnóstico de protocolo).
+  const mon = $("rawMonitor");
+  if (mon) mon.textContent = s.raw_hex || "—";
 }
 
 /* ------------------------------ Histórico ------------------------------- */

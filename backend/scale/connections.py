@@ -44,6 +44,24 @@ class BaseConnection:
         """Lê uma linha (até o terminador) e devolve texto, ou ``None``."""
         raise NotImplementedError
 
+    def read_raw(self) -> Optional[bytes]:
+        """Lê bytes crus disponíveis do equipamento.
+
+        Retorna:
+
+        * ``bytes`` (possivelmente vazio) quando a conexão está aberta — um
+          retorno vazio significa apenas que não havia dados dentro do
+          timeout de leitura;
+        * ``None`` quando a conexão está fechada.
+
+        Levanta :class:`ConnectionError_` em caso de erro real de I/O.
+
+        Este método é a base para protocolos **binários** (ex.: Mettler Toledo
+        TI400 P03), que não são delimitados por ``\\n`` e portanto não podem
+        ser lidos por :meth:`read_line`.
+        """
+        raise NotImplementedError
+
     @property
     def is_open(self) -> bool:
         raise NotImplementedError
@@ -131,6 +149,19 @@ class SerialConnection(BaseConnection):
             with self._lock:
                 self._buffer.extend(chunk)
         return self._extract_line()
+
+    def read_raw(self) -> Optional[bytes]:
+        """Lê bytes crus da porta serial (para protocolos binários)."""
+        ser = self._serial
+        if ser is None:
+            return None
+        try:
+            chunk = ser.read(4096)
+        except Exception as exc:
+            if self._serial is None:
+                return None
+            raise ConnectionError_(f"Erro de leitura serial: {exc}") from exc
+        return chunk or b""
 
     def _extract_line(self) -> Optional[str]:
         with self._lock:
@@ -229,6 +260,25 @@ class TcpConnection(BaseConnection):
         with self._lock:
             self._buffer.extend(chunk)
         return self._extract_line()
+
+    def read_raw(self) -> Optional[bytes]:
+        """Lê bytes crus do socket TCP (para protocolos binários)."""
+        sock = self._sock
+        if sock is None:
+            return None
+        try:
+            chunk = sock.recv(4096)
+        except socket.timeout:
+            return b""
+        except OSError as exc:
+            if self._sock is None:
+                return None
+            raise ConnectionError_(f"Erro de leitura TCP: {exc}") from exc
+        if chunk == b"":
+            if self._sock is None:
+                return None
+            raise ConnectionError_("Conexão TCP encerrada pelo equipamento")
+        return chunk
 
     def _extract_line(self) -> Optional[str]:
         with self._lock:

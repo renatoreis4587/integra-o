@@ -292,6 +292,23 @@ table.history tr:hover td { background: rgba(255,255,255,.02); }
   .brand h1 { font-size: 15px; }
 }
 
+/* ---------- Monitor de bytes crus ---------- */
+.monitor {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  background: #0b0f17;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+  max-height: 120px;
+  overflow: auto;
+  word-break: break-all;
+  white-space: pre-wrap;
+  color: #7ee0a1;
+}
+
 /* ---------- Print ---------- */
 @media print {
   body { background: #fff; color: #000; }

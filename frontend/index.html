@@ -222,6 +222,16 @@
             <textarea id="protoRegex" placeholder="(?P&lt;weight&gt;[-+]?\d+[\.,]?\d*)"></textarea>
             <div class="hint">Deve conter o grupo nomeado <code>weight</code>.</div>
           </div>
+          <div class="field">
+            <label>Monitor da balança — bytes recebidos</label>
+            <div class="monitor" id="rawMonitor">—</div>
+            <div class="hint">
+              Mostra os últimos bytes crus (hex + ASCII). Se aparecerem dados aqui
+              mas o peso não mudar, o protocolo selecionado não corresponde ao da
+              balança — experimente <b>TI400 Automático</b> ou envie este conteúdo
+              para ajuste.
+            </div>
+          </div>
         </div>
 
         <!-- Pesagem -->
