@@ -186,6 +186,26 @@
 
         <!-- Protocolo -->
         <div class="tab-panel" id="tab-proto">
+          <div class="ti400-box">
+            <div class="ti400-head">
+              <span class="ico">⚖️</span>
+              <span>Mettler Toledo TI400</span>
+            </div>
+            <p class="ti400-text">
+              Conectado pela <b>rede (cabo de rede / Wi-Fi)</b>? O TI400 envia o
+              protocolo <b>P03 (binário)</b>, e não o formato de texto
+              <code>ST,GS,+…</code>. Clique no botão abaixo para configurar tudo
+              automaticamente:
+            </p>
+            <button class="btn primary small" id="btnTi400Preset">
+              ⚙️ Configurar para TI400 (rede)
+            </button>
+            <p class="ti400-text small">
+              Depois, na aba <b>Conexão</b>, informe o <b>IP</b> e a <b>porta</b> do
+              indicador (ex.: <code>192.168.0.100:4001</code>) e clique em
+              <b>Conectar</b>. O peso aparecerá no visor em tempo real.
+            </p>
+          </div>
           <div class="field">
             <label>Protocolo da Balança</label>
             <select id="protoType"></select>

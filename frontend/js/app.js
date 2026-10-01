@@ -345,6 +345,29 @@ $("connType").onchange = toggleConnFields;
 $("cloudProvider").onchange = toggleCloudFields;
 $("protoType").onchange = toggleRegexField;
 
+/* Atalho: configura o sistema para o indicador Mettler Toledo TI400 via rede. */
+const btnTi400 = $("btnTi400Preset");
+if (btnTi400) {
+  btnTi400.onclick = () => {
+    // Protocolo TI400 (detecção automática P03 binário / P10 / P08).
+    const sel = $("protoType");
+    if (sel) sel.value = "ti400_auto";
+    // Conexão pela rede (TCP/IP), que é como o TI400 transmite o P03.
+    setVal("connType", "tcp");
+    toggleConnFields();
+    // Abre a aba Conexão para informar IP e porta.
+    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+    const tab = document.querySelector('.tab[data-tab="tab-conn"]');
+    if (tab) tab.classList.add("active");
+    const panel = $("tab-conn");
+    if (panel) panel.classList.add("active");
+    const host = $("tcpHost");
+    if (host) host.focus();
+    toast("TI400 selecionado. Informe o IP e a porta, depois clique em Salvar Configurações.", "info");
+  };
+}
+
 $("btnSaveConfig").onclick = async () => {
   const res = await api("/api/config", "POST", collectConfig());
   if (res.ok) {
