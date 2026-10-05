@@ -339,6 +339,19 @@ table.history tr:hover td { background: rgba(255,255,255,.02); }
 .ti400-text.small { font-size: 11.5px; margin-top: 10px; margin-bottom: 0; }
 .ti400-box .btn { margin-top: 2px; }
 
+/* Botão compacto (ex.: "Testar conexão de rede") */
+.btn.small { padding: 9px 13px; font-size: 12.5px; border-radius: 9px; }
+/* Código inline em dicas/ajuda */
+.hint code, .ti400-text code, .field .hint code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  background: rgba(255,255,255,.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text);
+}
+#testConnResult { min-height: 14px; line-height: 1.5; }
+
 /* ---------- Print ---------- */
 @media print {
   body { background: #fff; color: #000; }
