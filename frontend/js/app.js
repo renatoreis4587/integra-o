@@ -281,7 +281,7 @@ function collectConfig() {
       },
       tcp: {
         host: getVal("tcpHost"),
-        port: parseInt(getVal("tcpPort")) || 4001,
+        port: parseInt(getVal("tcpPort")) || 9000,
         timeout: parseFloat(getVal("tcpTimeout")) || 3.0,
       },
       auto_reconnect: getBool("autoReconnect"),
@@ -355,6 +355,9 @@ if (btnTi400) {
     // Conexão pela rede (TCP/IP), que é como o TI400 transmite o P03.
     setVal("connType", "tcp");
     toggleConnFields();
+    // Porta padrão do socket de rede do TI400 (Porta de comunicação A = 9000).
+    const portEl = $("tcpPort");
+    if (portEl && !portEl.value) portEl.value = "9000";
     // Abre a aba Conexão para informar IP e porta.
     document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
     document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
@@ -364,7 +367,31 @@ if (btnTi400) {
     if (panel) panel.classList.add("active");
     const host = $("tcpHost");
     if (host) host.focus();
-    toast("TI400 selecionado. Informe o IP e a porta, depois clique em Salvar Configurações.", "info");
+    toast("TI400 selecionado (porta 9000). Informe o IP e use \"Testar conexão de rede\".", "info");
+  };
+}
+
+/* Testa a conectividade TCP/IP com a balança antes de salvar/conectar. */
+const btnTestConn = $("btnTestConn");
+if (btnTestConn) {
+  btnTestConn.onclick = async () => {
+    const out = $("testConnResult");
+    const host = getVal("tcpHost");
+    const port = parseInt(getVal("tcpPort")) || 9000;
+    const timeout = parseFloat(getVal("tcpTimeout")) || 3.0;
+    if (!host) {
+      if (out) out.textContent = "Informe o IP/host da balança.";
+      toast("Informe o IP da balança.", "error");
+      return;
+    }
+    if (out) out.textContent = "Testando conexão...";
+    const res = await api("/api/connection/test", "POST", { host, port, timeout });
+    const msg = res.message || (res.ok ? "Conexão OK." : "Falha na conexão.");
+    if (out) {
+      out.textContent = msg;
+      out.style.color = res.ok ? "#39d98a" : "#ff6b6b";
+    }
+    toast(msg, res.ok ? "info" : "error");
   };
 }
 

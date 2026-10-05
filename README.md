@@ -102,17 +102,20 @@ Toda a configuração é feita **pela própria interface** (painel lateral →
 ### 1. Conexão
 - **RS232 (Serial):** selecione a porta (`COM1`, `/dev/ttyUSB0`...), baudrate,
   data bits, paridade e stop bits. Use o botão 🔍 para detectar portas.
-- **TCP/IP:** informe o **IP** e a **porta** da balança (ex.: `192.168.0.100:4001`).
+- **TCP/IP:** informe o **IP** e a **porta** da balança (ex.: `192.168.0.100:9000`).
+  No **Mettler Toledo Prix TI 400**, a porta padrão do socket de rede é **9000**
+  (porta A; B = 9001, C = 9002) e o protocolo é **P03**. Use o botão
+  **🔌 Testar conexão de rede** para validar antes de conectar.
 
 ### 2. Protocolo
 Escolha o protocolo da sua balança. Se ela envia o número "cru" (ex.: `12345`
 para 12,345 kg), use o protocolo **Genérico** com **3 casas decimais
 implícitas**. Para formatos especiais, use **Personalizado (Regex)**.
 
-**Indicador Mettler Toledo TI400:** conectado pela **rede (TCP/IP)**, o TI400
-envia o protocolo **P03**, que é um **quadro binário de tamanho fixo** — não é
-texto. Por isso o protocolo **Mettler Toledo / Toledo** (`ST,GS,+…`) **não
-funciona** com o TI400 na rede. Selecione:
+**Indicador Mettler Toledo TI400 (Prix TI 400):** conectado pela **rede
+(TCP/IP)**, o TI400 envia o protocolo **P03**, que é um **quadro binário de
+tamanho fixo** — não é texto. Por isso o protocolo **Mettler Toledo / Toledo**
+(`ST,GS,+…`) **não funciona** com o TI400 na rede. Selecione:
 
 - **Mettler Toledo TI400 — Automático** (recomendado): detecta P03 (binário) ou
   ASCII (P10/P08) automaticamente.
@@ -122,6 +125,14 @@ funciona** com o TI400 na rede. Selecione:
 
 Para descobrir o protocolo certo, veja o campo **Monitor da balança — bytes
 recebidos** na aba *Protocolo* (mostra os bytes crus em hexadecimal + ASCII).
+
+**Rede do TI400 — como conectar:** no indicador, menu **3. Rede → 1. Ethernet
+TCP/IP**, confirme o **IP** (padrão `192.168.001.001`), a **Porta de comunicação
+A = 9000** e o **Tipo de protocolo = P03**. No painel, aba *Conexão*, escolha
+**TCP/IP**, informe IP + porta (`9000`) e clique em **🔌 Testar conexão de
+rede** → **Salvar** → **Conectar**. O socket do TI400 é *Server* e transmite o
+P03 continuamente; o Integra-O conecta como *cliente TCP*. (O TI400 também
+oferece **Modbus TCP na porta 502**, mas o P03/9000 é o mais simples.)
 
 ### 3. Pesagem
 Defina unidade (kg/g/t/lb), tara padrão, limiar e tempo de estabilidade, peso
@@ -152,18 +163,18 @@ Destino** para validar a gravação.
 O projeto inclui um **simulador de balança TCP**:
 
 ```bash
-python scripts/simulador_balanca.py --port 4001 --protocol toledo
+python scripts/simulador_balanca.py --port 9000 --protocol toledo
 ```
 
 Depois, no painel, configure a conexão como **TCP/IP** apontando para
-`127.0.0.1:4001` e o protocolo **Mettler Toledo**. O peso aparecerá mudando
+`127.0.0.1:9000` e o protocolo **Mettler Toledo**. O peso aparecerá mudando
 automaticamente.
 
 Para simular um **indicador Mettler Toledo TI400** (quadro binário P03, igual ao
 do socket de rede real):
 
 ```bash
-python scripts/simulador_balanca.py --port 4001 --protocol ti400_p03
+python scripts/simulador_balanca.py --port 9000 --protocol ti400_p03
 ```
 
 E no painel escolha o protocolo **Mettler Toledo TI400 — P03** (ou **Automático**).
@@ -207,6 +218,8 @@ aba **Sistema**.
 |---|---|
 | "Falha ao abrir porta serial" | Porta errada ou em uso. Confira com o botão 🔍 e feche outros programas. |
 | Peso não aparece | Protocolo/baudrate incorretos. Teste com o simulador e ajuste o protocolo. No **TI400 via rede**, selecione **Mettler Toledo TI400 — P03** ou **Automático** (o formato `ST,GS,+…` não funciona nesse indicador). |
+| TI400 na rede: "Conexão recusada" ou "Tempo esgotado" | Confirme o **IP** (menu 3. Rede do indicador) e a **porta 9000**; verifique o cabo/rede e se a rede está habilitada. Use **🔌 Testar conexão de rede**. |
+| TI400 conecta mas o peso não muda | A porta escolhida está com protocolo diferente de P03, ou é a porta B/C. Use a **porta A (9000)** com **Tipo de protocolo = P03**. |
 | Peso "congelado" | Cabo/rede caíram. O sistema reconecta sozinho; verifique o log. |
 | Não salva na nuvem | Verifique a pasta de destino e o botão *Testar Destino*. |
 | Porta 5000 em uso | Altere a porta na aba **Sistema** e reinicie o servidor. |

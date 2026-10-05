@@ -73,9 +73,16 @@ uma página web servida pelo próprio backend, acessível por qualquer navegador
 - *Data Bits / Paridade / Stop Bits*: geralmente `8-N-1`.
 
 **TCP/IP**
-- *Host/IP*: endereço da balança (ex.: `192.168.0.100`).
-- *Porta*: porta do servidor TCP da balança (ex.: `4001`, `5000`, `9100`).
+- *Host/IP*: endereço da balança (ex.: `192.168.0.100`). Padrão de fábrica do
+  Mettler Toledo **Prix TI 400**: `192.168.001.001`.
+- *Porta*: porta do servidor TCP da balança. No **TI400** as portas de
+  comunicação são **A = 9000**, **B = 9001** e **C = 9002** (a porta A é a
+  padrão e aceita todos os protocolos). Outras balanças usam `4001`, `5000`,
+  `9100`, etc.
 - *Timeout*: tempo máximo de espera por resposta.
+- **🔌 Testar conexão de rede**: abre um socket TCP no IP/porta informados e
+  confirma se o indicador está acessível e enviando dados — use antes de
+  conectar.
 
 **Reconexão automática**: reconecta sozinho após queda, com intervalo definido.
 
@@ -113,6 +120,32 @@ abaixo:
   vem antes do bloco de status. Ex.: `Plataforma 0,269 LPFEZKp 0,627 0,358`.
 - **Mettler Toledo TI400 — P08/P08A**: formato de texto simples. Ex.:
   `S   09.076 kg`.
+
+**Conectar o TI400 pela rede (cabo de rede / Wi-Fi) — passo a passo**
+
+1. No indicador, entre no menu **3. Rede** e escolha **1. Ethernet TCP/IP**
+   (ou **2. Wlan**, para Wi-Fi). Anote o **Endereço IP** exibido (de fábrica
+   `192.168.001.001`).
+2. Confirme a **Porta de comunicação A** (padrão **9000**) e o
+   **Tipo de protocolo = P03**. As portas **B (9001)** e **C (9002)** só
+   aceitam P03 ou P10; use a **porta A** para os demais protocolos.
+3. Deixe o indicador e o computador na **mesma rede** (mesma faixa de IP,
+   ex.: `192.168.0.x`). Se necessário, ajuste IP/máscara/gateway do TI400.
+4. No painel, aba **Conexão**, escolha **TCP/IP (Rede)** e informe o **IP** e a
+   **porta** (ex.: `192.168.0.100` / `9000`).
+5. Clique em **🔌 Testar conexão de rede**. Se aparecer “Conexão TCP
+   estabelecida … Recebidos N byte(s)”, está tudo certo.
+6. Clique em **Salvar Configurações** e depois em **Conectar**. O peso aparece
+   no visor em tempo real.
+
+> ⚠️ O socket de rede do TI400 é do tipo **Server** e transmite o P03
+> **continuamente**. O sistema atua como **cliente TCP**, conectando-se ao IP e
+> à porta do indicador — não é preciso “pedir” a leitura.
+
+> ℹ️ **Modbus TCP (opcional):** o TI400 também expõe **Modbus TCP na porta
+> 502** (menu **9.4.4. Fieldbus**). Nesse modo o indicador é *slave* e o
+> software *master*. O Integra-O usa o socket **P03** (porta 9000), que é mais
+> simples e já vem habilitado de fábrica.
 
 **Como saber qual usar**: abra a aba **Protocolo** e observe o campo
 **Monitor da balança — bytes recebidos**. Ele mostra os últimos bytes crus

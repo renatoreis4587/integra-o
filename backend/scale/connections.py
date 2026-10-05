@@ -314,6 +314,78 @@ def build_connection(conn_cfg: dict, protocol_cfg: dict) -> BaseConnection:
     return SerialConnection(conn_cfg.get("serial", {}), encoding, terminator)
 
 
+def test_tcp_connection(host: str, port: int, timeout: float = 3.0,
+                        read_sample: bool = True) -> dict:
+    """Testa a conectividade TCP/IP com a balança (ex.: Mettler Toledo TI400).
+
+    Abre um socket cliente em ``host:port`` e, opcionalmente, tenta ler uma
+    pequena amostra de bytes para confirmar que o indicador está enviando
+    dados (o socket de rede do TI400 transmite o protocolo P03 de forma
+    contínua).
+
+    Retorna um dicionário com ``ok`` (bool), ``message`` (str) e, quando
+    houver dados, ``sample_hex``/``sample_ascii`` para diagnóstico.
+    """
+    result: dict = {
+        "ok": False,
+        "host": host,
+        "port": int(port),
+        "message": "",
+    }
+    if not host:
+        result["message"] = "Informe o IP/host da balança."
+        return result
+
+    sock = None
+    try:
+        sock = socket.create_connection((host, int(port)), timeout=timeout)
+        result["ok"] = True
+        result["message"] = f"Conexão TCP estabelecida com {host}:{port}."
+        if read_sample:
+            try:
+                sock.settimeout(min(timeout, 2.0))
+                sample = sock.recv(64)
+                if sample:
+                    result["sample_hex"] = " ".join(f"{b:02X}" for b in sample)
+                    result["sample_ascii"] = sample.decode(
+                        "ascii", errors="replace"
+                    )
+                    result["message"] += (
+                        f" Recebidos {len(sample)} byte(s) do indicador."
+                    )
+                else:
+                    result["message"] += (
+                        " Conectado, porém nenhum dado recebido no momento "
+                        "(verifique se o protocolo da porta é P03)."
+                    )
+            except socket.timeout:
+                result["message"] += (
+                    " Conectado, mas sem dados dentro do tempo de espera "
+                    "(verifique se o protocolo da porta de rede é P03)."
+                )
+            except OSError:
+                pass
+    except socket.timeout:
+        result["message"] = (
+            f"Tempo esgotado ao conectar em {host}:{port}. "
+            "Confira o IP e se o cabo de rede está conectado."
+        )
+    except ConnectionRefusedError:
+        result["message"] = (
+            f"Conexão recusada em {host}:{port}. "
+            "Confira a porta (padrão do TI400: 9000) e se a rede está habilitada."
+        )
+    except OSError as exc:
+        result["message"] = f"Falha de rede ao conectar em {host}:{port} — {exc}"
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+    return result
+
+
 def list_serial_ports() -> list:
     """Lista as portas seriais disponíveis no sistema."""
     try:

@@ -159,16 +159,24 @@
             <div class="field">
               <label>Host / IP da Balança</label>
               <input type="text" id="tcpHost" placeholder="192.168.0.100" />
+              <div class="hint">IP do indicador na rede. Padrão de fábrica do TI400: <code>192.168.001.001</code>.</div>
             </div>
             <div class="row">
               <div class="field">
                 <label>Porta TCP</label>
-                <input type="number" id="tcpPort" placeholder="4001" />
+                <input type="number" id="tcpPort" placeholder="9000" />
+                <div class="hint">TI400: porta A = <code>9000</code>, B = <code>9001</code>, C = <code>9002</code>.</div>
               </div>
               <div class="field">
                 <label>Timeout (s)</label>
                 <input type="number" step="0.5" id="tcpTimeout" placeholder="3" />
               </div>
+            </div>
+            <div class="field">
+              <button class="btn ghost small" id="btnTestConn" type="button">
+                🔌 Testar conexão de rede
+              </button>
+              <div class="hint" id="testConnResult"></div>
             </div>
           </div>
 
@@ -189,21 +197,24 @@
           <div class="ti400-box">
             <div class="ti400-head">
               <span class="ico">⚖️</span>
-              <span>Mettler Toledo TI400</span>
+              <span>Mettler Toledo Prix TI 400 — leitura via REDE</span>
             </div>
             <p class="ti400-text">
-              Conectado pela <b>rede (cabo de rede / Wi-Fi)</b>? O TI400 envia o
-              protocolo <b>P03 (binário)</b>, e não o formato de texto
-              <code>ST,GS,+…</code>. Clique no botão abaixo para configurar tudo
-              automaticamente:
+              Conectado pela <b>rede (cabo de rede / Wi-Fi)</b>? O socket de rede do
+              TI400 envia o protocolo <b>P03 (binário, contínuo)</b>, e não o formato
+              de texto <code>ST,GS,+…</code>. Clique no botão abaixo para configurar
+              tudo automaticamente:
             </p>
             <button class="btn primary small" id="btnTi400Preset">
               ⚙️ Configurar para TI400 (rede)
             </button>
             <p class="ti400-text small">
               Depois, na aba <b>Conexão</b>, informe o <b>IP</b> e a <b>porta</b> do
-              indicador (ex.: <code>192.168.0.100:4001</code>) e clique em
-              <b>Conectar</b>. O peso aparecerá no visor em tempo real.
+              indicador e clique em <b>Conectar</b>. No TI400, o menu
+              <b>3. Rede → 1. Ethernet TCP/IP</b> mostra a <b>Porta de comunicação A
+              = 9000</b> (B = 9001, C = 9002) e o <b>Tipo de protocolo = P03</b>.
+              Exemplo: <code>192.168.0.100:9000</code>. Use
+              <b>🔌 Testar conexão de rede</b> para confirmar antes de conectar.
             </p>
           </div>
           <div class="field">

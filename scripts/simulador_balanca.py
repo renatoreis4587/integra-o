@@ -6,10 +6,11 @@ configurável, permitindo testar o sistema sem hardware real.
 
 Uso::
 
-    python scripts/simulador_balanca.py --port 4001 --protocol generic
+    python scripts/simulador_balanca.py --port 9000 --protocol ti400_p03
 
 Depois, no painel, configure a conexão como TCP/IP apontando para
-127.0.0.1:4001.
+127.0.0.1:9000 (a porta padrão do socket de rede do Mettler Toledo TI400 é
+9000 — Porta de comunicação A).
 """
 
 import argparse
@@ -102,7 +103,7 @@ def handle_client(conn, protocol: str):
 def main():
     parser = argparse.ArgumentParser(description="Simulador de balança TCP")
     parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=4001)
+    parser.add_argument("--port", type=int, default=9000)
     parser.add_argument("--protocol", default="generic",
                         choices=["generic", "toledo", "cas", "aandd", "filizola",
                                  "ti400_p03", "ti400_p10", "ti400_p08"])

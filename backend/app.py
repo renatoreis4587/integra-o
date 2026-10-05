@@ -25,7 +25,7 @@ from flask_socketio import SocketIO, emit
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from scale.config import ConfigManager  # noqa: E402
-from scale.connections import list_serial_ports  # noqa: E402
+from scale.connections import list_serial_ports, test_tcp_connection  # noqa: E402
 from scale.manager import ScaleManager  # noqa: E402
 from scale.protocols import available_protocols  # noqa: E402
 
@@ -190,6 +190,31 @@ def api_command(name):
     except Exception as exc:  # noqa: BLE001
         log(f"Erro no comando '{name}': {exc}", "error")
         return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/api/connection/test", methods=["POST"])
+def api_connection_test():
+    """Testa a conectividade TCP/IP com a balança (ex.: Mettler Toledo TI400).
+
+    Aceita ``host``/``port``/``timeout`` no corpo JSON. Quando omitidos, usa
+    os valores da configuração atual.
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    conn_cfg = config.get_section("connection")
+    tcp_cfg = conn_cfg.get("tcp", {}) if isinstance(conn_cfg, dict) else {}
+    host = body.get("host") or tcp_cfg.get("host", "")
+    port = body.get("port") or tcp_cfg.get("port", 9000)
+    timeout = body.get("timeout") or tcp_cfg.get("timeout", 3.0)
+    try:
+        result = test_tcp_connection(host, int(port), float(timeout))
+    except (TypeError, ValueError) as exc:
+        return jsonify({"ok": False, "message": f"Parâmetros inválidos: {exc}"}), 400
+    if result.get("ok"):
+        log(f"Teste de rede OK em {host}:{port}", "info")
+    else:
+        log(f"Teste de rede falhou em {host}:{port} — {result.get('message')}",
+            "warning")
+    return jsonify(result)
 
 
 @app.route("/api/cloud/test", methods=["POST"])
